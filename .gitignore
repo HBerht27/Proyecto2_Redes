@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Las capturas de Wireshark para entregar van en capturas/ y SI se
+# versionan (son parte del entregable de la Fase 1); esto solo ignora
+# capturas sueltas de pruebas que alguien deje fuera de esa carpeta.
+/*.pcap
+/*.pcapng
