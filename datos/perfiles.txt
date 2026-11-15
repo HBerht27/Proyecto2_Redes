@@ -1,0 +1,7 @@
+# usuario:perfil:S_u_en_hex
+# Datos de prueba para desarrollo local. S_u es un valor aleatorio de
+# 32 bytes (64 caracteres hex) asignado por la Boveda, no una
+# contrasena elegida por la persona.
+roberto:jefe:1ac47ae3c5b8630f834c3deab829c9b6efe707a96fcf764b555aa62afc31c6dc
+axel:integrante:b02e3a1ee3b667a4e933b2e0c465a6ed33afb9e8ac4c9c88ed19c0767825bb25
+matias:integrante:abf7eb98899bfd1d9b5c6b80f60af041f0a82ebaea834fb7c42d9e8c84130f15

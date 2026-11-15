@@ -35,7 +35,7 @@ class PerfilesInvalidos(Exception):
 def cargar(ruta: str | Path) -> dict[str, Custodio]:
     """Lee perfiles.txt y devuelve {usuario: Custodio}.
 
-    TODO (Axel): completar la carga real.
+    TODO (Matías): completar la carga real.
     - Abrir el archivo, saltar lineas vacias/comentarios.
     - Partir cada linea por ':', validar que el perfil este en
       PERFILES_VALIDOS y que el secreto tenga 32 bytes una vez

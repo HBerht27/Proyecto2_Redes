@@ -8,7 +8,7 @@ usarse para construir una ruta de archivo real (nada de
 por cualquier custodio autenticado, y cuenta como vulnerabilidad no
 planificada aparte de los dos defectos asignados.
 
-TODO (Axel): elegir una de estas dos formas de persistencia y
+TODO (Matías): elegir una de estas dos formas de persistencia y
 completar las funciones de abajo:
 
 1. Diccionario en memoria: {usuario: {clave: valor}}, con un volcado
