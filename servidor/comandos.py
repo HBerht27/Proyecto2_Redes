@@ -1,34 +1,19 @@
-"""Manejo de los comandos autenticados: CONSULTAR, AGREGAR, BORRAR,
-CIERRE, y construccion de RESP/ERROR.
-
-Tabla de permisos (ver "Perfiles de permiso" en la especificacion):
-
-    Capacidad              hacinado  integrante  jefe
-    Consultar informacion     No        Si         Si
-    Agregar informacion       No        Si         Si
-    Borrar informacion        No        No         Si
-    Cierre de emergencia      No        No         Si
-
-TODO (Axel): implementar manejar_comando() usando almacen.Almacen y la
-Sesion activa. Cada handler recibe el cuerpo JSON ya descifrado (dict)
-y la Sesion, y devuelve el dict de respuesta (que boveda.py se encarga
-de cifrar y enviar como RESP, o como ERROR si algo fallo).
-
-Puntos a no dejar pasar (vulnerabilidades no planificadas, fuera de los
-dos defectos asignados):
-- CONSULTAR/AGREGAR/BORRAR siempre operan sobre almacen bajo
-  sesion.usuario, nunca sobre un usuario que venga en el cuerpo del
-  mensaje (si el cliente llegara a mandarlo, ignorarlo).
-- BORRAR y CIERRE verifican sesion.perfil == PERFIL_JEFE antes de
-  hacer nada.
-- Cualquier excepcion al parsear el cuerpo (JSON invalido, falta
-  "clave", etc.) debe resultar en ERROR generico, no en que boveda.py
-  se caiga.
-"""
+"""Manejo de comandos y permisos de la Boveda."""
 
 from __future__ import annotations
 
-from servidor.almacen import Almacen
+from common.tipos import (
+    CONSULTAR,
+    AGREGAR,
+    BORRAR,
+    CIERRE,
+    RESP,
+    ERROR,
+    PERFIL_INTEGRANTE,
+    PERFIL_JEFE,
+)
+
+from servidor.almacen import Almacen, AlmacenError
 from servidor.sesiones import Sesion
 
 
@@ -36,29 +21,98 @@ class PermisoDenegado(Exception):
     pass
 
 
+class ComandoInvalido(Exception):
+    pass
+
+
+def verificar_permiso(sesion: Sesion, solo_jefe: bool = False) -> None:
+    if sesion.usuario is None:
+        raise PermisoDenegado
+
+    if solo_jefe:
+        if sesion.perfil != PERFIL_JEFE:
+            raise PermisoDenegado
+    elif sesion.perfil not in (PERFIL_INTEGRANTE, PERFIL_JEFE):
+        raise PermisoDenegado
+
+
 def manejar_consultar(almacen: Almacen, sesion: Sesion, cuerpo: dict) -> dict:
-    raise NotImplementedError
+    verificar_permiso(sesion)
+
+    clave = cuerpo.get("clave")
+
+    if not isinstance(clave, str):
+        raise ComandoInvalido
+
+    valor = almacen.consultar(sesion.usuario, clave)
+
+    return {
+        "clave": clave,
+        "valor": valor
+    }
 
 
 def manejar_agregar(almacen: Almacen, sesion: Sesion, cuerpo: dict) -> dict:
-    raise NotImplementedError
+    verificar_permiso(sesion)
+
+    clave = cuerpo.get("clave")
+    valor = cuerpo.get("valor")
+
+    if not isinstance(clave, str) or not isinstance(valor, str):
+        raise ComandoInvalido
+
+    almacen.agregar(sesion.usuario, clave, valor)
+
+    return {"ok": True}
 
 
 def manejar_borrar(almacen: Almacen, sesion: Sesion, cuerpo: dict) -> dict:
-    raise NotImplementedError
+    verificar_permiso(sesion, solo_jefe=True)
+
+    clave = cuerpo.get("clave")
+
+    if not isinstance(clave, str):
+        raise ComandoInvalido
+
+    almacen.borrar(sesion.usuario, clave)
+
+    return {"ok": True}
 
 
 def manejar_cierre(almacen: Almacen, sesion: Sesion, cuerpo: dict) -> dict:
-    """Ademas de responder {"ok": true}, quien llama a esto (boveda.py)
-    es responsable de: derrumbar el almacen, cerrar el socket a la
-    escucha y rechazar toda conexion nueva durante esta ejecucion del
-    servicio. Esta funcion solo valida el permiso y arma la respuesta;
-    no le corresponde tocar sockets."""
-    raise NotImplementedError
+    verificar_permiso(sesion, solo_jefe=True)
+
+    if cuerpo:
+        raise ComandoInvalido
+
+    return {"ok": True}
 
 
 DESPACHO = {
-    # tipo de mensaje -> handler. Completar con las constantes de
-    # common.tipos (CONSULTAR, AGREGAR, BORRAR, CIERRE) una vez que los
-    # handlers de arriba esten listos.
+    CONSULTAR: manejar_consultar,
+    AGREGAR: manejar_agregar,
+    BORRAR: manejar_borrar,
+    CIERRE: manejar_cierre,
 }
+
+
+def manejar_comando(
+    tipo: int,
+    almacen: Almacen,
+    sesion: Sesion,
+    cuerpo: dict
+) -> tuple[int, dict]:
+
+    try:
+        if not isinstance(cuerpo, dict):
+            raise ComandoInvalido
+
+        if tipo not in DESPACHO:
+            raise ComandoInvalido
+
+        respuesta = DESPACHO[tipo](almacen, sesion, cuerpo)
+
+        return RESP, respuesta
+
+    except (PermisoDenegado, ComandoInvalido, AlmacenError):
+        return ERROR, {"mensaje": "error"}
