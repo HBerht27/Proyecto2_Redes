@@ -21,6 +21,9 @@ from servidor.sesiones import Sesion, procesar_login
 from servidor.comandos import manejar_comando
 
 _NS_SERVIDOR = os.urandom(16)
+# Secreto de relleno: un usuario inexistente se atiende igual que uno real
+# (con claves derivadas de este valor) para no revelar quien existe.
+_S_U_FALSO = os.urandom(32)
 MAX_CONEXIONES = 50
 
 
@@ -171,9 +174,8 @@ def manejar_conexion(sock, direccion, perfiles, almacen, estado):
             return
         nc, usuario = _atender_handshake(sock, primero)
         custodio = perfiles.get(usuario)
-        if custodio is None:
-            return
-        k_enc, k_mac = criptografia.derivar_claves_sesion(custodio.s_u, nc, _NS_SERVIDOR)
+        s_u = custodio.s_u if custodio is not None else _S_U_FALSO
+        k_enc, k_mac = criptografia.derivar_claves_sesion(s_u, nc, _NS_SERVIDOR)
         sesion = Sesion(k_enc, k_mac, nc)
         tipo, cuerpo = _recibir_cifrado(sock, sesion)
         if tipo != LOGIN:
