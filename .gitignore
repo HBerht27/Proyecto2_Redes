@@ -8,3 +8,4 @@ venv/
 # capturas sueltas de pruebas que alguien deje fuera de esa carpeta.
 /*.pcap
 /*.pcapng
+datos/almacen.json
