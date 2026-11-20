@@ -1,68 +1,90 @@
 # BOVEDA-1 — Proyecto 2, Casa 1
 
-Implementacion del protocolo BOVEDA-1 (cliente-servidor sobre TCP) para el
-curso Redes de Comunicacion de Datos, UCR.
+Implementación del protocolo BOVEDA-1 (cliente-servidor sobre TCP) para el
+curso Redes de Comunicación de Datos, UCR.
 
 Integrantes: Axel Saborío Esquivel, José Roberto Murillo Lozano, Matías
 Venegas Sancho.
 
-La especificación completa del protocolo (framing, formato de mensaje,
-handshake, autentificación, confidencialidad/integridad/anti-repetición,
-permisos y cierre de emergencia) está en el documento de diseño ya
-aprobado; este repositorio la implementa tal cual quedó ahí.
+La especificación del protocolo (framing, formato de mensaje, handshake,
+autentificación, confidencialidad, integridad, anti-repetición, permisos y
+cierre de emergencia) está en el documento «Especificación pública del
+protocolo BÓVEDA-1 (Casa 1)». Este repositorio la implementa.
 
 ## Estructura
 
 ```
 common/      Framing, formato de mensaje y criptografía. Lo comparten
              el servidor y el cliente; no debe divergir entre los dos.
-servidor/    La Boveda: login, perfiles, almacenamiento, permisos,
+servidor/    La Bóveda: login, perfiles, almacenamiento, permisos,
              cierre de emergencia y asilo.
 cliente/     El custodio: handshake, login y comandos por CLI.
-datos/       perfiles.txt de prueba para desarrollo local.
-capturas/    Capturas de Wireshark para la entrega de la Fase 1.
+datos/       perfiles.txt de prueba (usuario:perfil:S_u_en_hex). El
+             almacén (almacen.json) se crea al ejecutar la Bóveda.
+capturas/    Captura de Wireshark de una sesión legítima completa.
 ```
 
 ## División de trabajo
 
-- **`common/`** — Roberto. Contrato compartido; queda cerrado desde el
-  inicio para que servidor y cliente se puedan desarrollar en paralelo
-  sin bloquearse entre sí.
+- **`common/`** — Roberto. Contrato compartido entre servidor y cliente.
 - **`servidor/sesiones.py`, `servidor/comandos.py`, `servidor/boveda.py`** — Axel.
-  Es la parte con concurrencia: un hilo por conexión, límites de
-  disponibilidad (timeout, máximo de conexiones) y el cierre de
-  emergencia coordinado entre hilos.
+  Un hilo por conexión, límites de disponibilidad (timeout, máximo de
+  conexiones) y cierre de emergencia coordinado entre hilos.
 - **`servidor/perfiles.py`, `servidor/almacen.py`, `cliente/custodio.py`** — Matías.
-  Carga de `perfiles.txt`, la capa de almacenamiento (sin hilos
-  involucrados) y el cliente completo, que es lineal: conectar,
-  handshake, login, comandos por CLI.
+  Carga de `perfiles.txt`, capa de almacenamiento y cliente completo
+  (conectar, handshake, login, comandos por CLI, asilo).
 
-Se repartió así en vez de servidor/cliente tal cual porque la parte de
-concurrencia y coordinación del servidor (`sesiones.py`/`comandos.py`/
-`boveda.py`) es bastante más pesada que el cliente por sí solo; moviendo
-`perfiles.py` y `almacen.py` (autocontenidos, sin sockets) a Matías
-queda más parejo.
+## Requisitos
 
-Todos los archivos de estos dos grupos traen comentarios en cada
-función indicando qué debe hacer y con qué parte de la especificación
-corresponde; faltan los cuerpos.
+Solo biblioteca estándar de Python 3. No hay dependencias que instalar.
+Todos los comandos se ejecutan desde la raíz del repo.
 
 ## Cómo correr
 
-Solo biblioteca estándar de Python 3, no hay dependencias que instalar.
+**Servidor** (escucha en el puerto 5301):
 
 ```bash
-python3 -m servidor.boveda          # levanta la Boveda en el puerto 5301
-python3 -m cliente.custodio         # cliente interactivo
+python3 -m servidor.boveda
 ```
 
-(Ambos comandos ejecutados desde la raíz del repo.)
+**Cliente** (el secreto S_u y el perfil se toman de `datos/perfiles.txt`
+si se ejecuta en la misma máquina):
 
-## Pendiente antes de la demo (martes 18)
+```bash
+python3 -m cliente.custodio --usuario axel
+python3 -m cliente.custodio --usuario roberto
+```
 
-- Completar `servidor/` y `cliente/`.
-- `datos/perfiles.txt` real para el entorno de laboratorio.
-- Captura de Wireshark de una sesión legítima completa (handshake +
-  login + un comando) en `capturas/`.
-- Ensayar la demo de 3–5 min: login, agregar, consultar, borrar (jefe),
-  cierre de emergencia.
+Comandos dentro del cliente: `consultar <clave>`, `agregar <clave> <valor>`,
+`borrar <clave>` (solo jefe), `cierre` (solo jefe), `ayuda` y `salir`.
+
+**Desde otra máquina**, indicando la dirección de la Bóveda (si no hay
+`perfiles.txt` local, el cliente pide el S_u sin eco):
+
+```bash
+python3 -m cliente.custodio --host <IP> --usuario axel
+```
+
+**Solicitar asilo** (perfil `hacinado`, sin acceso a comandos):
+
+```bash
+python3 -m cliente.custodio --host <IP> --asilo
+```
+
+Otras opciones: `--puerto`, `--perfil`, `--s-u <hex>`, `--perfiles <ruta>`,
+`--peticion`, `--sal` y `--harina`.
+
+## Usuarios de prueba
+
+`datos/perfiles.txt` define a `roberto` (jefe) y a `axel` y `matias`
+(integrantes). Formato de cada línea: `usuario:perfil:S_u_en_hex`.
+
+## Captura de Wireshark
+
+`capturas/sesion_legitima.pcapng`: sesión completa con handshake, login y
+comandos (filtro `tcp.port == 5301`).
+
+## Nota
+
+El cierre de emergencia elimina `datos/almacen.json`. Si la Bóveda se
+interrumpe a mitad del cierre y no arranca, basta con borrar ese archivo.
